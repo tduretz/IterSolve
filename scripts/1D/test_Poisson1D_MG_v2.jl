@@ -42,7 +42,7 @@ function SOR!(u, rhs, dx, k, iterMax, Sc, nx, ω, epsi, ndt, RP, R, level, noisy
         if mod(iter,ndt) == 1 && level == 1 && noisy
             q   = k.*diff(u,dims=1)/dx
             R  .= [0; diff(q,dims=1)/dx .- rhs[2:end-1]; 0]
-            res = norm(R)/sqrt(length(R))
+            res = norm(R)/(length(R))
             @printf("Level %0d --- res = %2.2e\n", level, res)
         end
         iter += 1
@@ -68,7 +68,7 @@ function Jacobi!(u, rhs, dx, k, iterMax, Sc, nx, damp, epsi, ndt, RP, R, level, 
         if mod(iter,ndt) == 1 && level == 1 && noisy
             q   = k.*diff(u,dims=1)/dx;
             R  .= [0; diff(q,dims=1)/dx .+ damp*R[2:end-1] .- rhs[2:end-1]; 0] ;
-            res = norm(R)/sqrt(length(R));
+            res = norm(R)/(length(R));
             @printf("Level %0d --- res = %2.2e\n", level, res)
         end
             iter = iter+1;
@@ -110,7 +110,7 @@ function PT!(u, rhs, dx, k, iterMax, Sc, nx, damp, epsi, ndt, RP, R, level, nois
         if mod(iter,ndt) == 1 && level == 1  && noisy
             q   = k.*diff(u,dims=1)/dx
             R  .= [0; diff(q,dims=1)/dx .+ damp*R[2:end-1] .- rhs[2:end-1]; 0] 
-            res = norm(R)/sqrt(length(R))
+            res = norm(R)/(length(R))
             @printf("Lev. %0d --- it. %06d --- res = %2.2e\n", level, iter, res)
         end
             iter = iter+1
@@ -164,7 +164,7 @@ function Poisson1D_MG_v2(n)
     # Residual
     q    = k.*diff(u,dims=1)/dx;
     f    = b .- [0; diff(q,dims=1)./dx; 0];
-    @printf( "Initial residual: %2.2e\n", norm(f)/(sqrt(length(f))));
+    @printf( "Initial residual: %2.2e\n", norm(f)/((length(f))));
     @printf( "mean residual: %2.2e\n", mean(f));
 
     #-------------------------------------------------------------------------%
@@ -244,7 +244,7 @@ function Poisson1D_MG_v2(n)
     damp    = 1.0
     epsi    = 1e-13
     ndt     = 1000
-    @show NX      = reverse(Int.(floor.(LinRange(50, nx, n+1))))
+    @show NX      = reverse(Int.(floor.(LinRange(40, nx, n+1))))
     IT      = 100 .* ones(size(NX))
     nlev    = length(NX)
     direct  = true
