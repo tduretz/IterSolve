@@ -1,0 +1,4 @@
+name = "IterSolve"
+uuid = "d300caee-f0bd-4530-8c68-ca5e3c7d29df"
+authors = ["Duretz Thibault <thibault.duretz@univ-rennes1.fr>"]
+version = "0.1.0"
