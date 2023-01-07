@@ -23,14 +23,13 @@ end
 
 #########################
 
-function SOR!(u, rhs, dx, k, iterMax, Sc, nx, damp, epsi, ndt, RP, R, level, noisy )
+function SOR!(u, rhs, dx, k, iterMax, Sc, nx, ω, epsi, ndt, RP, R, level, noisy )
     iter = 0; res = epsi*2; 
-    ω  = 4.0*(0.5 - 1.0/nx)
     while  (iter < iterMax) && (max(res) > epsi)
         for i=1:2 # Red-black sweeps
             # Residuals
             q   = k.*diff(u,dims=1)/dx
-            R  .= [0; diff(q,dims=1)/dx .+ damp*R[2:end-1] .- rhs[2:end-1]; 0]
+            R  .= [0; diff(q,dims=1)/dx .- rhs[2:end-1]; 0]
             # Update
             c   = (k[1:end-1] .+ k[2:end])/dx/dx;
             if i==1
@@ -42,7 +41,7 @@ function SOR!(u, rhs, dx, k, iterMax, Sc, nx, damp, epsi, ndt, RP, R, level, noi
         # Resid check
         if mod(iter,ndt) == 1 && level == 1 && noisy
             q   = k.*diff(u,dims=1)/dx
-            R  .= [0; diff(q,dims=1)/dx .+ damp*R[2:end-1] .- rhs[2:end-1]; 0]
+            R  .= [0; diff(q,dims=1)/dx .- rhs[2:end-1]; 0]
             res = norm(R)/sqrt(length(R))
             @printf("Level %0d --- res = %2.2e\n", level, res)
         end
@@ -179,22 +178,22 @@ function Poisson1D_MG_v2(n)
 
     #-------------------------------------------------------------------------%
 
-    # Jacobi solve
-    @printf("\nJacobi solver\n"); 
-    u_Jac   = zeros(size(u))
-    R       = zeros(size(u))
-    Rd      = zeros(size(u))
-    noisy   = true
-    dmp     = 4.0
-    Sc      = 0.5
-    damp    = 0*(1.0-dmp/nx)
-    iterMax = 2e4
-    epsi    = 1e-11
-    ndt     = 1000
-    level   = 1
-    u      .= 0.0
-    iter    = Jacobi!(u_Jac, b, dx, k, iterMax, Sc, nx, 1*damp, epsi, ndt, R, Rd, level, noisy );
-    @printf("Converged in %02d iterations down to R = %2.2e\n", iter, norm(RP)/(length(RP))); 
+    # # Jacobi solve
+    # @printf("\nJacobi solver\n"); 
+    # u_Jac   = zeros(size(u))
+    # R       = zeros(size(u))
+    # Rd      = zeros(size(u))
+    # noisy   = true
+    # dmp     = 4.0
+    # Sc      = 0.5
+    # damp    = 0*(1.0-dmp/nx)
+    # iterMax = 2e4
+    # epsi    = 1e-11
+    # ndt     = 1000
+    # level   = 1
+    # u      .= 0.0
+    # iter    = Jacobi!(u_Jac, b, dx, k, iterMax, Sc, nx, 1*damp, epsi, ndt, R, Rd, level, noisy );
+    # @printf("Converged in %02d iterations down to R = %2.2e\n", iter, norm(RP)/(length(RP))); 
 
     #-------------------------------------------------------------------------%
 
@@ -226,7 +225,7 @@ function Poisson1D_MG_v2(n)
     noisy   = true
     dmp     = 4.0
     Sc      = 0.5
-    damp    = 0*(1.0-dmp/nx)
+    damp    = 4.0*(0.5 - 1.0/nx)
     iterMax = 2e4
     epsi    = 1e-11
     ndt     = 1000
@@ -237,101 +236,99 @@ function Poisson1D_MG_v2(n)
 
     #-------------------------------------------------------------------------%
 
-    # # Multigrid solver
-    # @printf("\nGMG solver\n")
-    # noisy   = false
-    # dmp     = 4.0
-    # Sc      = 0.5
-    # damp    = 0*(1-dmp/nx)
-    # epsi    = 1e-13
-    # ndt     = 1000
-    # @show NX      = reverse(Int.(floor.(LinRange(50, nx, n+1))))
-    # IT      = 100 .* ones(size(NX))
-    # nlev    = length(NX)
-    # direct  = false
-    # # smoother = :PT
-    # # smoother = :Jacobi
-    # smoother = :SOR
+    # Multigrid solver
+    @printf("\nGMG solver\n")
+    noisy   = false
+    dmp     = 4.0
+    Sc      = 0.5
+    damp    = 1.0
+    epsi    = 1e-13
+    ndt     = 1000
+    @show NX      = reverse(Int.(floor.(LinRange(50, nx, n+1))))
+    IT      = 100 .* ones(size(NX))
+    nlev    = length(NX)
+    direct  = true
+    # smoother = :PT
+    # smoother = :Jacobi
+    smoother = :SOR
 
-    # # Initialise
-    # DX      = (xmax-xmin)./(NX.-1)
-    # XC = Vector{Vector{Float64}}(undef, nlev)
-    # XV = Vector{Vector{Float64}}(undef, nlev)
-    # K  = Vector{Vector{Float64}}(undef, nlev)
-    # B  = Vector{Vector{Float64}}(undef, nlev)
-    # U  = Vector{Vector{Float64}}(undef, nlev)
-    # R  = Vector{Vector{Float64}}(undef, nlev)
-    # Rd = Vector{Vector{Float64}}(undef, nlev)
-    # for ilev=1:nlev
-    #     XV[ilev] = LinRange(xmin,xmax,NX[ilev])
-    #     XC[ilev] = 0.5*(XV[ilev][1:end-1].+XV[ilev][2:end])
-    #     U[ilev]  = zeros(NX[ilev]); R[ilev] = zeros(NX[ilev]); Rd[ilev] = zeros(NX[ilev]); B[ilev] = zeros(NX[ilev]); K[ilev]  = zeros(NX[ilev]-1);
-    # end
-    # B[1] .= f             # Initial RHS
-    # u_MG = zeros(size(u)) # Initial solution
-    # iter_tot = 0
+    # Initialise
+    DX      = (xmax-xmin)./(NX.-1)
+    XC = Vector{Vector{Float64}}(undef, nlev)
+    XV = Vector{Vector{Float64}}(undef, nlev)
+    K  = Vector{Vector{Float64}}(undef, nlev)
+    B  = Vector{Vector{Float64}}(undef, nlev)
+    U  = Vector{Vector{Float64}}(undef, nlev)
+    R  = Vector{Vector{Float64}}(undef, nlev)
+    Rd = Vector{Vector{Float64}}(undef, nlev)
+    for ilev=1:nlev
+        XV[ilev] = LinRange(xmin,xmax,NX[ilev])
+        XC[ilev] = 0.5*(XV[ilev][1:end-1].+XV[ilev][2:end])
+        U[ilev]  = zeros(NX[ilev]); R[ilev] = zeros(NX[ilev]); Rd[ilev] = zeros(NX[ilev]); B[ilev] = zeros(NX[ilev]); K[ilev]  = zeros(NX[ilev]-1);
+    end
+    B[1] .= f             # Initial RHS
+    u_MG = zeros(size(u)) # Initial solution
+    iter_tot = 0
 
-    # # From Fine to Coarse Restrict variable PDE coefficient 
-    # K[1] .= k
-    # for ilev=2:nlev
-    #     Interp1D!(K[ilev-1], K[ilev], XC[ilev-1], XC[ilev], 0)
-    # end
+    # From Fine to Coarse Restrict variable PDE coefficient 
+    K[1] .= k
+    for ilev=2:nlev
+        Interp1D!(K[ilev-1], K[ilev], XC[ilev-1], XC[ilev], 0)
+    end
 
-    # for itMG=1:100
+    for itMG=1:100
 
-    #     # V-cycle
-    #     for ilev=1:nlev
-    #         # damp    = 1-dmp/NX[ilev] # Turn off damping for MG
+        # V-cycle
+        for ilev=1:nlev
             
-    #         U[ilev] .= 0.0 # reset corrections
+            U[ilev] .= 0.0 # reset corrections
             
-    #         if ilev == nlev && nlev>1 && direct
-    #             U[ilev] .= DirectSolve( B[ilev], K[ilev], DX[ilev], NX[ilev] );
-    #         else
-    #             if smoother==:PT     iter =     PT!(U[ilev], B[ilev], DX[ilev], K[ilev], IT[ilev], Sc, NX[ilev], damp, epsi, ndt, R[ilev], Rd[ilev], ilev, noisy )     end
-    #             if smoother==:Jacobi iter = Jacobi!(U[ilev], B[ilev], DX[ilev], K[ilev], IT[ilev], Sc, NX[ilev], damp, epsi, ndt, R[ilev], Rd[ilev], ilev, noisy ) end
-    #             if smoother==:SOR    iter =    SOR!(U[ilev], B[ilev], DX[ilev], K[ilev], IT[ilev], Sc, NX[ilev], damp, epsi, ndt, R[ilev], Rd[ilev], ilev, noisy )    end
-    #         end
+            if ilev == nlev && nlev>1 && direct
+                U[ilev] .= DirectSolve( B[ilev], K[ilev], DX[ilev], NX[ilev] );
+            else
+                if smoother==:PT     iter =     PT!(U[ilev], B[ilev], DX[ilev], K[ilev], IT[ilev], Sc, NX[ilev], damp, epsi, ndt, R[ilev], Rd[ilev], ilev, noisy )     end
+                if smoother==:Jacobi iter = Jacobi!(U[ilev], B[ilev], DX[ilev], K[ilev], IT[ilev], Sc, NX[ilev], damp, epsi, ndt, R[ilev], Rd[ilev], ilev, noisy ) end
+                if smoother==:SOR    iter =    SOR!(U[ilev], B[ilev], DX[ilev], K[ilev], IT[ilev], Sc, NX[ilev], damp, epsi, ndt, R[ilev], Rd[ilev], ilev, noisy )    end
+            end
 
-    #         if ilev==1 iter_tot = iter_tot + iter; end
+            if ilev==1 iter_tot = iter_tot + iter; end
 
-    #         if (ilev<nlev)
-    #             Interp1D!(R[ilev], B[ilev+1], XV[ilev], XV[ilev+1], 0)
-    #         end
-    #     end
+            if (ilev<nlev)
+                Interp1D!(R[ilev], B[ilev+1], XV[ilev], XV[ilev+1], 0)
+            end
+        end
 
-    #     for ilev=nlev:-1:1
-    #         # damp    = 1-dmp/NX[ilev] # Turn off damping for MG
+        for ilev=nlev:-1:1
 
-    #         if ilev == nlev && nlev>1 && direct
-    #             U[ilev] .= DirectSolve( B[ilev], K[ilev], DX[ilev], NX[ilev] );
-    #         else
-    #             if smoother==:PT     iter =     PT!(U[ilev], B[ilev], DX[ilev], K[ilev], IT[ilev], Sc, NX[ilev], damp, epsi, ndt, R[ilev], Rd[ilev], ilev, noisy )     end
-    #             if smoother==:Jacobi iter = Jacobi!(U[ilev], B[ilev], DX[ilev], K[ilev], IT[ilev], Sc, NX[ilev], damp, epsi, ndt, R[ilev], Rd[ilev], ilev, noisy ) end
-    #             if smoother==:SOR    iter =    SOR!(U[ilev], B[ilev], DX[ilev], K[ilev], IT[ilev], Sc, NX[ilev], damp, epsi, ndt, R[ilev], Rd[ilev], ilev, noisy )    end
-    #         end
-    #         if ilev==1 iter_tot = iter_tot + iter; end
-    #         if (ilev>1)      
-    #             Interp1D!( U[ilev], U[ilev-1], XV[ilev], XV[ilev-1],  1);
-    #         end
-    #     end
-    #     u_MG .+= U[1]
-    #     q    = k.*diff(u_MG,dims=1)/dx;
-    #     f    = b .- [0; diff(q,dims=1)/dx; 0];
-    #     if (norm(f)/length(f) < 1*epsi) break; end
-    #     @printf("it = %03d --- R = %2.2e\n", itMG, norm(f)/(length(f))); 
-    #     B[1] .= f;
-    # end
-    # @printf("Converged in %02d iterations down to R = %2.2e\n", iter_tot, norm(RP)/(length(RP))); 
+            if ilev == nlev && nlev>1 && direct
+                U[ilev] .= DirectSolve( B[ilev], K[ilev], DX[ilev], NX[ilev] );
+            else
+                if smoother==:PT     iter =     PT!(U[ilev], B[ilev], DX[ilev], K[ilev], IT[ilev], Sc, NX[ilev], damp, epsi, ndt, R[ilev], Rd[ilev], ilev, noisy )     end
+                if smoother==:Jacobi iter = Jacobi!(U[ilev], B[ilev], DX[ilev], K[ilev], IT[ilev], Sc, NX[ilev], damp, epsi, ndt, R[ilev], Rd[ilev], ilev, noisy ) end
+                if smoother==:SOR    iter =    SOR!(U[ilev], B[ilev], DX[ilev], K[ilev], IT[ilev], Sc, NX[ilev], damp, epsi, ndt, R[ilev], Rd[ilev], ilev, noisy )    end
+            end
+            if ilev==1 iter_tot = iter_tot + iter; end
+            if (ilev>1)      
+                Interp1D!( U[ilev], U[ilev-1], XV[ilev], XV[ilev-1],  1);
+            end
+        end
+        u_MG .+= U[1]
+        q    = k.*diff(u_MG,dims=1)/dx;
+        f    = b .- [0; diff(q,dims=1)/dx; 0];
+        if (norm(f)/length(f) < 1*epsi) break; end
+        @printf("it = %03d --- R = %2.2e\n", itMG, norm(f)/(length(f))); 
+        B[1] .= f;
+    end
+    @printf("Converged in %02d iterations down to R = %2.2e\n", iter_tot, norm(RP)/(length(RP))); 
 
     p = plot()
     p = plot!(xv, u_dir, label="direct")
     p = plot!(xv, u_PT,  label="PT (damped)")
-    p = plot!(xv, u_Jac, label="Jacobi")
+    # p = plot!(xv, u_Jac, label="Jacobi")
     p = plot!(xv, u_SOR, label="GS Red-black")
-    # p = plot!(xv, u_MG,  label="GMG (SOR)")
+    p = plot!(xv, u_MG,  label="GMG (SOR)")
     display(p)
 
 end
     
-Poisson1D_MG_v2(8)
+Poisson1D_MG_v2(16)
