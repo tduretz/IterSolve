@@ -331,4 +331,4 @@ function Poisson1D_MG_v2(n)
 
 end
     
-Poisson1D_MG_v2(16)
+Poisson1D_MG_v2(1)
