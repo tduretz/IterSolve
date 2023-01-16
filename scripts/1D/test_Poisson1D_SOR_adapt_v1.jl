@@ -107,7 +107,7 @@ function Poisson1D_DYSOR(n)
         a1 = D*u_SOR
         a2 = -L*u_SOR
         b1 = D*u_SOR
-        b2 = b .- D*u_SOR .- U*u_SOR
+        b2 = b .- D*u_SOR .+ U*u_SOR
         ωv = LinRange(1.0,2.1,20)
         f0_vec .= 0.0
         for ils in eachindex(ωv)
