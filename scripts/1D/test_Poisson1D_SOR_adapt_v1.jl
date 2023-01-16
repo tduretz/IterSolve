@@ -121,7 +121,7 @@ function Poisson1D_DYSOR(n)
         (val,ind)   = findmin(f0_vec)
         ω           = ωv[ind]
         ω_log[its]  = ωv[ind]
-        f0_log[its] = ωv[ind]
+        f0_log[its] = f0_vec[ind]
     end
     @printf("DYSOR converged in %04d\n", its)
     @printf("Converged down to R = %2.2e\n", norm(f)/(length(f))); 
